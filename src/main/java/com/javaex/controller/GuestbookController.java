@@ -2,13 +2,13 @@ package com.javaex.controller;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-import com.javaex.dao.GuestbookDAO;
 import com.javaex.service.GuestbookService;
 import com.javaex.vo.GuestbookVO;
 
@@ -16,6 +16,9 @@ import com.javaex.vo.GuestbookVO;
 public class GuestbookController {
 
 	//필드
+	@Autowired
+	private GuestbookService guestbookService;
+	
 	
 	//생성자
 	
@@ -28,7 +31,11 @@ public class GuestbookController {
 		System.out.println("GuestbookController.list()");
 		
 		//service
-		GuestbookService guestbookService = new GuestbookService();
+		
+		//@Autowired
+		//guestbookService 메모리에 올려주세요
+		//주소0x333 주입 해주세요
+		//GuestbookService guestbookService = new GuestbookService();
 		List<GuestbookVO> guestbookList = guestbookService.exeGetGuestbookList();
 		
 		//*Model개념
@@ -74,7 +81,7 @@ public class GuestbookController {
 		*/
 		////////////////////////////////////////////////////
 		
-		GuestbookService guestbookService = new GuestbookService();
+		//GuestbookService guestbookService = new GuestbookService();
 		guestbookService.exeGuestbookAdd(guestbookVO);
 		
 		
@@ -116,7 +123,7 @@ public class GuestbookController {
 	public String remove(@ModelAttribute GuestbookVO guestbooVO) {
 		System.out.println("GuestbookController.remove()");
 		
-		GuestbookService guestbookService = new GuestbookService();
+		//GuestbookService guestbookService = new GuestbookService();
 		guestbookService.exeGuestbookRemove(guestbooVO);
 		
 

@@ -5,22 +5,17 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.ibatis.session.SqlSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.javaex.vo.GuestbookVO;
 
 @Repository
-public class GuestbookDAO {
+public class GuestbookDAO2 {
 
 	// 필드
-	@Autowired
-	private SqlSession sqlSession;
-	
-	
 	// 0. import java.sql.*;
 	private Connection conn = null;
 	private PreparedStatement pstmt = null;
@@ -65,35 +60,50 @@ public class GuestbookDAO {
 	}
 
 	public List<GuestbookVO> guestbookSelect() {
-		System.out.println("GuestbookDAO.guestbookSelect()");
-		
-		List<GuestbookVO> guestbookList = sqlSession.selectList("guestbook.selectList");
-		
-		System.out.println("------------------------------");
-		System.out.println(guestbookList);
-		System.out.println("------------------------------");
+		List<GuestbookVO> guestbookList = new ArrayList<GuestbookVO>();
+
+		this.getConnection();
+
+		try {
+
+			// 3. SQL문 준비 / 바인딩 / 실행
+
+			// --SQL문 준비
+			String query = "";
+			query += " select no, ";
+			query += "        name, ";
+			query += "        password, ";
+			query += "        content, ";
+			query += "        reg_date ";
+			query += " from guestbook ";
+			query += " order by reg_date desc  ";
+
+			// --바인딩
+			pstmt = conn.prepareStatement(query);
+
+			// --실행
+			rs = pstmt.executeQuery();
+
+			// 4.결과처리
+			while (rs.next()) {
+				int no = rs.getInt("no");
+				String name = rs.getString("name");
+				String password = rs.getString("password");
+				String content = rs.getString("content");
+				String regDate = rs.getString("reg_date");
+
+				GuestbookVO guestbookVO = new GuestbookVO(no, name, password, content, regDate);
+				guestbookList.add(guestbookVO);
+			}
+
+		} catch (SQLException e) {
+			System.out.println("error:" + e);
+		}
+
+		this.close();
+
 		return guestbookList;
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 
 	public int guestbookInsert(GuestbookVO guestbookVO) {
 		int count = -1;
