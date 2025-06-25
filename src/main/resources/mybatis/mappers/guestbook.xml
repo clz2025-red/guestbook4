@@ -6,20 +6,37 @@
 	
 	<!-- 방명록전체가져오기 -->
 	<select id="selectList"  resultType="com.javaex.vo.GuestbookVO">
-		select 	no,
-				name,
-				password,
-		        content,
-		        reg_date
-		from guestbook
-		order by reg_date desc
+		<![CDATA[    
+			select 	no,
+					name,
+					password,
+			        content,
+			        reg_date as regDate
+			from guestbook
+			order by reg_date desc  
+		]]>
 	</select>
-	
+
 		
 	
 	<!-- 방명록저장 -->
+	<insert id="insert" parameterType="com.javaex.vo.GuestbookVO">
+		<![CDATA[    
+			insert into guestbook
+			values(null, #{name}, #{password}, #{content}, now())
+		]]>
+	</insert>
+	
+	
 	
 	<!-- 방명록삭제 -->
+	<delete id="delete" parameterType="com.javaex.vo.GuestbookVO">
+		<![CDATA[    
+			delete from guestbook
+			where no = #{no}
+			and password = #{password}
+		]]>
+	</delete>
 	
 	
 </mapper>
