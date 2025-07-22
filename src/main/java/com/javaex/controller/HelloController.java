@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 public class HelloController {
 	//필드
 	
+	
 	//생성자
 	
 	//메소드gs
