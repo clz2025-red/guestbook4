@@ -50,5 +50,5 @@ jobs:
           # sudo /usr/local/tomcat/bin/shutdown.sh || sudo pkill -f tomcat || true
           # sleep 5
 
-          # echo "[4] 톰캣 재시작"
-          # sudo /usr/local/tomcat/bin/startup.sh > /dev/null 2>&1 &
+          echo "[4] 톰캣 재시작"
+          sudo /usr/local/tomcat/bin/startup.sh
