@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/ROOT.war"
-          target: "/home/ec2-user/ROOT.war" # 파일을 이 경로로 직접 복사합니다.
+          target: "/home/ec2-user/" # 파일을 이 디렉토리로 복사하고, 파일 이름은 ROOT.war로 유지됩니다.
 
       - name: Verify ROOT.war on EC2
         uses: appleboy/ssh-action@v1.0.3
