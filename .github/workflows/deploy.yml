@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/*.war"  # 빌드된 WAR 파일 경로
-          target: "/home/ec2-user/"  # 복사 위치
+		  target: "/home/ec2-user/"  # 복사 위치
 		  strip_components: 1
 		  
       - name: Deploy WAR and restart Tomcat with sudo
