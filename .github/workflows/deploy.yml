@@ -19,7 +19,7 @@ jobs:
         distribution: 'temurin'
 
     - name: Build WAR with Maven
-      run: mvn clean package -DskipTests  # WAR 빌드, 테스트 생략
+      run: mvn clean package  # WAR 빌드, 테스트 생략
 
     - name: Copy WAR to EC2
       uses: appleboy/scp-action@v0.1.7  # SCP로 EC2에 WAR 복사
