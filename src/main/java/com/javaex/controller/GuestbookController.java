@@ -24,6 +24,7 @@ public class GuestbookController {
 	
 	//메소드gs
 	
+	
 	//메소드일반
 	//-방명록 전체 리스트 가져오기
 	@RequestMapping(value="/list", method= {RequestMethod.GET, RequestMethod.POST})
