@@ -13,6 +13,7 @@ public class HelloController {
 	
 	//메소드gs
 	
+	
 	//메소드일반
 	@RequestMapping(value="/hello", method= {RequestMethod.GET, RequestMethod.POST})
 	public String hello() {
