@@ -4,66 +4,60 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch:  # 수동 실행도 가능하게 설정
+  workflow_dispatch:  # 수동 실행 가능
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # GitHub에서 제공하는 Ubuntu 환경에서 실행
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3  # 저장소 코드 가져오기
+        uses: actions/checkout@v3
 
-      - name: Set up Java
-        uses: actions/setup-java@v3  # Java 17 설치
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build WAR with Maven (including tests)
-        # pom.xml에 <finalName>ROOT</finalName> 설정이 되어 있다고 가정하고 빌드합니다.
-        # -DskipTests 옵션을 제거하여 테스트가 자동으로 실행되도록 합니다.
-        run: mvn clean package  # 테스트를 포함하여 WAR 빌드
+      - name: Build WAR with Maven (includes tests)
+        run: mvn clean package
 
-      - name: Check WAR file in target directory # 빌드 후 target 디렉토리 확인
+      - name: Check WAR file in target directory
         run: |
-          echo "--- GitHub Actions Runner의 target 디렉토리 내용 ---"
+          echo "--- GitHub Actions Runner target 디렉토리 내용 ---"
           ls -l target/
           if [ ! -f "target/ROOT.war" ]; then
-            echo "오류: GitHub Actions Runner의 target 디렉토리에서 ROOT.war 파일을 찾을 수 없습니다."
-            echo "pom.xml의 <finalName>ROOT</finalName> 설정이 올바른지 확인해주세요."
+            echo "오류: target/ROOT.war 파일이 없습니다. pom.xml <finalName> 확인 필요."
             exit 1
           fi
           echo "target/ROOT.war 파일 확인 완료."
 
-      - name: Copy ROOT.war to EC2 (to home directory)
-        uses: appleboy/scp-action@v0.1.7  # ROOT.war 파일을 EC2 인스턴스로 전송
+      - name: Copy ROOT.war to EC2 home directory
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "target/ROOT.war" # 이제 소스 파일 이름이 ROOT.war로 고정됩니다.
-          target: "/home/ec2-user/" # EC2의 /home/ec2-user/ 디렉토리에 복사됩니다.
+          source: "target/ROOT.war"
+          target: "/home/ec2-user/ROOT.war"
 
-      - name: Verify ROOT.war on EC2 after SCP # SCP 복사 후 EC2 홈 디렉토리 확인
+      - name: Verify ROOT.war on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "--- EC2 /home/ec2-user/ 디렉토리 내용 (SCP 후) ---"
+            echo "--- EC2 /home/ec2-user 디렉토리 내용 ---"
             ls -l /home/ec2-user/
             if [ ! -f "/home/ec2-user/ROOT.war" ]; then
-              echo "오류: SCP 복사 후 EC2 /home/ec2-user/ 디렉토리에서 ROOT.war 파일을 찾을 수 없습니다."
-              echo "SCP 액션이 실패했거나 파일이 다른 곳으로 복사되었을 수 있습니다."
+              echo "오류: /home/ec2-user/ROOT.war 파일이 존재하지 않습니다."
               exit 1
             fi
-            echo "EC2 /home/ec2-user/ROOT.war 파일 확인 완료."
-            echo "--- 파일 복사 확인 완료. 워크플로우를 여기서 종료합니다. ---"
-            exit 0 # 여기까지만 실행하고 워크플로우를 성공적으로 종료합니다.
+            echo "EC2에 ROOT.war 파일 복사 완료."
 
-      # --- 아래부터는 Tomcat 배포 및 시작 관련 단계로, 현재는 주석 처리되어 실행되지 않습니다. ---
+      # 톰캣 배포 및 재시작 (필요 시 주석 해제 후 사용)
       # - name: Deploy WAR and restart Tomcat
       #   uses: appleboy/ssh-action@v1.0.3
       #   with:
@@ -71,62 +65,31 @@ jobs:
       #     username: ${{ secrets.EC2_USER }}
       #     key: ${{ secrets.EC2_SSH_KEY }}
       #     script: |
-      #       echo "[1] EC2 홈 디렉토리에서 ROOT.war 파일 존재 여부 확인 (최종 배포 전)"
+      #       echo "[1] /home/ec2-user/ROOT.war 존재 확인"
       #       if [ ! -f "/home/ec2-user/ROOT.war" ]; then
-      #         echo "오류: /home/ec2-user/ 디렉토리에서 ROOT.war 파일을 찾을 수 없습니다. (이전 단계에서 문제가 발생했을 수 있습니다.)"
+      #         echo "오류: /home/ec2-user/ROOT.war 파일 없음."
       #         exit 1
       #       fi
-      #       echo "ROOT.war 파일 존재 확인 완료."
-
-      #       echo "[2] 기존 배포 파일 삭제"
+      #       echo "파일 존재 확인 완료."
+      #
+      #       echo "[2] 기존 톰캣 ROOT 폴더 및 WAR 삭제"
       #       sudo rm -rf /usr/local/tomcat/webapps/ROOT.war
       #       sudo rm -rf /usr/local/tomcat/webapps/ROOT
-      #       echo "기존 배포 파일 삭제 완료."
-
+      #       echo "기존 배포 삭제 완료."
+      #
       #       echo "[3] WAR 파일 이동"
       #       sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war
       #       if [ $? -ne 0 ]; then
       #         echo "오류: WAR 파일 이동 실패."
       #         exit 1
       #       fi
-      #       echo "WAR 파일 이동 완료: /usr/local/tomcat/webapps/ROOT.war"
-
-      #       echo "[4] 톰캣 웹앱 디렉토리 내용 확인 (이동 후)"
-      #       ls -l /usr/local/tomcat/webapps/
-      #       echo "톰캣 웹앱 디렉토리 내용 확인 완료."
-
-      #       echo "[5] 톰캣 프로세스 종료 (없으면 무시)"
+      #       echo "WAR 파일 이동 완료."
+      #
+      #       echo "[4] 톰캣 프로세스 종료 (존재하면)"
       #       sudo pkill -f tomcat || true
       #       sleep 5
-      #       echo "Tomcat 종료 시도 완료."
-
-      #       echo "[6] 톰캣 시작"
+      #       echo "톰캣 종료 완료."
+      #
+      #       echo "[5] 톰캣 시작"
       #       sudo /usr/local/tomcat/bin/startup.sh
-      #       sleep 20
-      #       echo "Tomcat 시작 시도 완료."
-
-      #       echo "[7] 톰캣 프로세스 실행 확인"
-      #       if pgrep -f tomcat > /dev/null; then
-      #         echo "Tomcat 프로세스가 성공적으로 실행 중입니다."
-      #       else
-      #         echo "오류: Tomcat이 시작되지 않았습니다. 톰캣 로그를 확인하십시오."
-      #         exit 1
-      #       fi
-
-      #       echo "[8] ROOT 폴더 생성 확인 및 로그 출력"
-      #       if [ -d "/usr/local/tomcat/webapps/ROOT" ]; then
-      #         echo "ROOT 폴더가 성공적으로 생성되었습니다!"
-      #         ls -ld /usr/local/tomcat/webapps/ROOT
-      #       else
-      #         echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-      #         echo "경고: ROOT 폴더가 생성되지 않았습니다. 톰캣 배포에 실패한 것으로 보입니다."
-      #         echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-      #         echo ""
-      #         echo "--- 톰캣 catalina.out 로그 내용 ---"
-      #         sudo cat /usr/local/tomcat/logs/catalina.out || echo "catalina.out 파일을 찾을 수 없거나 읽을 수 없습니다."
-      #         echo "--- 톰캣 catalina.out 로그 내용 끝 ---"
-      #         echo ""
-      #         echo "위 로그 내용을 바탕으로 문제 원인을 분석해주세요."
-      #         exit 1
-	  #
-      
+      #
