@@ -29,6 +29,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         source: target/ROOT.war
         target: /home/ec2-user/
+        strip_components: 1  # target/ 디렉토리를 제거하고 ROOT.war만 복사됨
     # - name: Clean and Restart Tomcat
     #   uses: appleboy/ssh-action@v1.0.3  # EC2에 SSH 접속 후 명령 실행
     #   with:
