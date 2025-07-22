@@ -4,15 +4,15 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch: # master 브랜치에 push 시 실행됨
+  workflow_dispatch:  # 수동 실행도 가능하게 설정
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Ubuntu 서버에서 실행(깃허브의 코드를 war파일로 만들기 가상서버)
+    runs-on: ubuntu-latest  # GitHub에서 제공하는 Ubuntu 환경에서 실행
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3  # 저장소 코드 내려받음
+        uses: actions/checkout@v3  # 저장소 코드 가져오기
 
       - name: Set up Java
         uses: actions/setup-java@v3  # Java 17 설치
@@ -21,20 +21,20 @@ jobs:
           distribution: 'temurin'
 
       - name: Build WAR with Maven
-        run: mvn clean package -DskipTests  # WAR 빌드, 테스트 생략
+        run: mvn clean package -DskipTests  # 테스트 생략하고 WAR 빌드
 
-	  - name: Copy WAR to EC2 (to home directory)
-		uses: appleboy/scp-action@v0.1.7 # SCP로 EC2에 WAR 복사
-		  with:
-		    host: ${{ secrets.EC2_HOST }}
-		    username: ${{ secrets.EC2_USER }}
-		    key: ${{ secrets.EC2_SSH_KEY }}
-		    source: "target/*.war" # 빌드된 WAR 파일 경로
-		    target: "/home/ec2-user/" # 복사 위치
-		    strip_components: 1
-		  
+      - name: Copy WAR to EC2 (to home directory)
+        uses: appleboy/scp-action@v0.1.7  # WAR 파일을 EC2 인스턴스로 전송
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "target/*.war"
+          target: "/home/ec2-user/"
+          strip_components: 1
+
       - name: Deploy WAR and restart Tomcat with sudo
-        uses: appleboy/ssh-action@v1.0.3  # EC2에 SSH 접속 후 명령 실행
+        uses: appleboy/ssh-action@v1.0.3  # EC2 내에서 명령어 실행
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
@@ -46,7 +46,7 @@ jobs:
 
             echo "[2] WAR 파일 이동 및 이름 변경"
             sudo mv /home/ec2-user/*.war /usr/local/tomcat/webapps/ROOT.war
-          
+
             echo "[3] 톰캣 프로세스 종료 (없으면 무시)"
             sudo pkill -f tomcat || true
 
