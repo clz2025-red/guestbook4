@@ -44,7 +44,7 @@ jobs:
             sudo rm -rf /usr/local/tomcat/webapps/ROOT
 
             echo "[2] WAR 파일 이동 및 이름 변경"
-            sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war
+            sudo mv /home/ec2-user/*.war /usr/local/tomcat/webapps/ROOT.war
           
             echo "[3] 톰캣 프로세스 종료 (없으면 무시)"
             sudo pkill -f tomcat || true
