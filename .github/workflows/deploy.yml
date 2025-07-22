@@ -46,9 +46,9 @@ jobs:
           echo "[2] 새 WAR 파일 이동"
           sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war
 
-          # echo "[3] 톰캣 종료"
-          # sudo /usr/local/tomcat/bin/shutdown.sh || sudo pkill -f tomcat || true
-          # sleep 5
+          echo "[3] 톰캣 종료"
+          sudo /usr/local/tomcat/bin/shutdown.sh || true
+          sleep 5
 
           echo "[4] 톰캣 재시작"
           sudo /usr/local/tomcat/bin/startup.sh
