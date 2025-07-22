@@ -32,7 +32,7 @@ jobs:
         overwrite: true        # 파일이 있으면 덮어씌움
         strip_components: 1    # target/ 디렉토리를 제거하고 ROOT.war만 복사됨
 
-    - name: Clean and Restart Tomcat
+    - name: Move WAR to Tomcat's webapps
       uses: appleboy/ssh-action@v1.0.3   # EC2에 SSH 접속 후 명령 실행
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -46,9 +46,9 @@ jobs:
           echo "[2] 새 WAR 파일 이동"
           sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war
 
-          echo "[3] 톰캣 종료 (shutdown.sh)"
-          sudo /usr/local/tomcat/bin/shutdown.sh
-          sleep 5
+          # echo "[3] 톰캣 종료"
+          # sudo /usr/local/tomcat/bin/shutdown.sh || sudo pkill -f tomcat || true
+          # sleep 5
 
-          echo "[4] 톰캣 재시작"
-          sudo /usr/local/tomcat/bin/startup.sh
+          # echo "[4] 톰캣 재시작"
+          # sudo /usr/local/tomcat/bin/startup.sh > /dev/null 2>&1 &
