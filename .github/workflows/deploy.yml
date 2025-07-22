@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/ROOT.war"
-          target: "/home/ec2-user/ROOT.war"
+          target: "/home/ec2-user/ROOT.war" # 파일을 이 경로로 직접 복사합니다.
 
       - name: Verify ROOT.war on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -56,6 +56,9 @@ jobs:
               exit 1
             fi
             echo "EC2에 ROOT.war 파일 복사 완료."
+            echo "--- 파일 복사 확인 완료. 워크플로우를 여기서 종료합니다. ---"
+            exit 0 # 이 지점에서 워크플로우를 성공적으로 종료합니다.
+
 
       # 톰캣 배포 및 재시작 (필요 시 주석 해제 후 사용)
       # - name: Deploy WAR and restart Tomcat
