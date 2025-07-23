@@ -8,11 +8,7 @@
 		<title>Insert title here</title>
 	</head>
 	<body>
-<<<<<<< HEAD
 		v01
-=======
-		v11
->>>>>>> branch 'master' of https://github.com/clz2025-red/guestbook4.git
 		<form action="${pageContext.request.contextPath}/add" method="get">
 			<table border="1" width="540px">
 				<tr>
