@@ -1,164 +1,60 @@
-name: Deploy WAR to EC2 Tomcat  # 워크플로우 이름
+name: Deploy WAR to EC2 Tomcat  # 자동화 작업 흐름 이름 (워크플로)
 
 on:
   push:
-    branches:
-      - master
-  workflow_dispatch:  # 수동 실행 가능
+    branches: [ "master" ]  # master 브랜치에 push 될 때 실행됨
+
+  workflow_dispatch:        # 👉 GitHub 화면에서 수동으로 버튼 눌러 실행할 수 있게 해줌
+  # 위 설정을 넣으면 GitHub Actions 탭에서 버튼 클릭하여 이 워크플로를 수동 실행 가능함
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # GitHub Actions가 명령을 실행할 가상의 Ubuntu 리눅스 서버 (작업 종료 후 자동 삭제됨)
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
+    - name: Checkout source code
+      uses: actions/checkout@v3   # GitHub 저장소의 코드를 현재 가상 서버로 복사해옴
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: Set up Java
+      uses: actions/setup-java@v3  # 서버에 Java 환경 설치
+      with:
+        java-version: '17'         # Java 17 버전 사용
+        distribution: 'temurin'    # OpenJDK 배포판 중 하나인 temurin 사용
 
-      - name: Build WAR with Maven (includes tests)
-        run: mvn clean package
+    - name: Build WAR with Maven
+      run: mvn clean package  # Maven으로 WAR 파일 빌드 (기존 빌드 결과는 삭제하고 새로 생성)
 
-      - name: Check WAR file in target directory
-        run: |
-          echo "--- GitHub Actions Runner target 디렉토리 내용 ---"
-          ls -l target/
-          if [ ! -f "target/ROOT.war" ]; then
-            echo "오류: target/ROOT.war 파일이 없습니다. pom.xml <finalName> 확인 필요."
-            exit 1
-          fi
-          echo "target/ROOT.war 파일 확인 완료."
+    - name: Copy WAR to EC2
+      uses: appleboy/scp-action@v0.1.7  # 로컬에서 서버(EC2)로 파일을 복사하는 명령어 모음 (appleboy가 만듬)
+      with:
+        host: ${{ secrets.EC2_HOST }}             # EC2 IP
+        username: ${{ secrets.EC2_USER }}         # EC2 ID
+        key: ${{ secrets.EC2_SSH_KEY }}           # web.pem (SSH 접속에 사용하는 키)
+        source: target/ROOT.war                   # 복사할 WAR 파일 경로
+        target: /home/ec2-user/                   # EC2 서버 내부에 복사될 위치
+        overwrite: true                           # 같은 파일이 있으면 덮어쓰기
+        strip_components: 1                       # 'target/' 경로 제거하고 ROOT.war 파일만 복사
 
-      - name: Copy ROOT.war to EC2 home directory
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "target/ROOT.war"
-          target: "/home/ec2-user/" # 파일을 이 디렉토리로 복사하고, 파일 이름은 ROOT.war로 유지됩니다.
+    - name: Move WAR to Tomcat's webapps
+      uses: appleboy/ssh-action@v1.0.3  # EC2 서버에 SSH로 접속하여 아래 명령들을 실행함
+      with:
+        host: ${{ secrets.EC2_HOST }}         # EC2 IP
+        username: ${{ secrets.EC2_USER }}     # EC2 ID
+        key: ${{ secrets.EC2_SSH_KEY }}       # web.pem (SSH 접속용 키)
+        script: |
+          echo "[1] 기존 ROOT.war 및 ROOT 폴더 삭제"
+          sudo rm -rf /usr/local/tomcat/webapps/ROOT.war     # 기존 ROOT.war 파일 삭제
+          sudo rm -rf /usr/local/tomcat/webapps/ROOT         # 기존 ROOT 폴더 삭제
 
-      - name: Deploy WAR and restart Tomcat
-        uses: appleboy/ssh-action@v1.0.3  # EC2 내에서 명령어 실행
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            echo "[1] EC2 홈 디렉토리에서 불필요한 target 폴더 삭제"
-            # /home/ec2-user/ 에 혹시 모를 target 디렉토리가 있다면 삭제합니다.
-            sudo rm -rf /home/ec2-user/target
-            echo "EC2 홈 디렉토리 target 폴더 삭제 완료."
+          echo "[2] 새 WAR 파일 이동"
+          sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war  # 새 WAR 파일을 Tomcat 경로로 이동
 
-            echo "[2] EC2 홈 디렉토리에서 ROOT.war 파일 존재 여부 확인"
-            # /home/ec2-user/ 디렉토리에 ROOT.war 파일이 있는지 확인합니다.
-            if [ ! -f "/home/ec2-user/ROOT.war" ]; then
-              echo "오류: /home/ec2-user/ROOT.war 파일이 존재하지 않습니다."
-              exit 1
-            fi
-            echo "ROOT.war 파일 존재 확인 완료."
+          echo "[3] 톰캣 종료"
+          sudo /usr/local/tomcat/bin/shutdown.sh || true
+          # shutdown.sh 명령에 오류가 나도 무시하고 정상 처리함 (워크플로우가 중단되지 않게)
 
-            echo "[3] 기존 배포 파일 삭제"
-            # 톰캣 웹앱 디렉토리에서 기존 ROOT.war 파일과 ROOT 폴더를 삭제합니다.
-            # ROOT 폴더가 없을 수도 있으므로, 이 명령은 오류를 내지 않고 넘어갑니다.
-            sudo rm -rf /usr/local/tomcat/webapps/ROOT.war
-            sudo rm -rf /usr/local/tomcat/webapps/ROOT
-            echo "기존 배포 파일 삭제 완료."
+          echo "[4] 잠시 대기..."
+          sleep 5  # 톰캣이 완전히 종료될 시간을 주기 위해 5초 대기
 
-            echo "[4] WAR 파일 이동"
-            # /home/ec2-user/ 에 있는 ROOT.war 파일을 톰캣 웹앱 디렉토리로 옮깁니다.
-            sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war
-            if [ $? -ne 0 ]; then # 이전 'mv' 명령이 실패했다면
-              echo "오류: WAR 파일 이동 실패."
-              exit 1
-            fi
-            echo "WAR 파일 이동 완료: /usr/local/tomcat/webapps/ROOT.war"
-
-            echo "[5] 톰캣 웹앱 디렉토리 내용 확인 (이동 후)"
-            # ROOT.war 파일이 webapps 디렉토리에 올바르게 있는지 확인합니다.
-            ls -l /usr/local/tomcat/webapps/
-            echo "톰캣 웹앱 디렉토리 내용 확인 완료."
-
-            echo "[6] 톰캣 프로세스 종료 (없으면 무시)"
-            # 현재 실행 중인 모든 톰캣 프로세스를 강제로 종료합니다.
-            sudo pkill -f tomcat || true
-            sleep 5 # 톰캣이 완전히 종료될 때까지 5초 대기합니다.
-            echo "Tomcat 종료 시도 완료."
-
-            echo "[7] 톰캣 시작"
-            # 톰캣 시작 스크립트를 실행합니다.
-            sudo /usr/local/tomcat/bin/startup.sh
-            sleep 20 # 톰캣이 완전히 시작되고 WAR 파일 압축을 풀 때까지 20초 대기합니다.
-            echo "Tomcat 시작 시도 완료."
-
-            echo "[8] 톰캣 프로세스 실행 확인"
-            # 'pgrep -f tomcat' 명령을 사용하여 'tomcat'이라는 이름을 가진 프로세스가 실행 중인지 확인합니다.
-            if pgrep -f tomcat > /dev/null; then
-              echo "Tomcat 프로세스가 성공적으로 실행 중입니다."
-            else
-              echo "오류: Tomcat이 시작되지 않았습니다. 톰캣 로그를 확인하십시오."
-              exit 1 # 톰캣이 시작되지 않았다면 워크플로우를 실패 처리합니다.
-            fi
-
-            echo "[9] ROOT 폴더 생성 확인 및 로그 출력"
-            # 톰캣이 ROOT.war를 배포하여 ROOT 폴더가 생성되었는지 확인합니다.
-            if [ -d "/usr/local/tomcat/webapps/ROOT" ]; then
-              echo "ROOT 폴더가 성공적으로 생성되었습니다!"
-              ls -ld /usr/local/tomcat/webapps/ROOT # ROOT 폴더의 상세 정보를 출력합니다.
-            else
-              echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-              echo "경고: ROOT 폴더가 생성되지 않았습니다. 톰캣 배포에 실패한 것으로 보입니다."
-              echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-              echo ""
-              echo "--- 톰캣 catalina.out 로그 내용 ---"
-              # 톰캣의 catalina.out 로그 파일을 출력하여 오류 원인을 파악합니다.
-              # 경로가 다를 수 있으니 실제 EC2 환경에 맞게 수정해주세요.
-              sudo cat /usr/local/tomcat/logs/catalina.out || echo "catalina.out 파일을 찾을 수 없거나 읽을 수 없습니다."
-              echo "--- 톰캣 catalina.out 로그 내용 끝 ---"
-              echo ""
-              echo "위 로그 내용을 바탕으로 문제 원인을 분석해주세요."
-              exit 1 # ROOT 폴더가 없으면 워크플로우를 실패 처리합니다.
-            fi
-
-
-
-      # 톰캣 배포 및 재시작 (필요 시 주석 해제 후 사용)
-      # - name: Deploy WAR and restart Tomcat
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ secrets.EC2_HOST }}
-      #     username: ${{ secrets.EC2_USER }}
-      #     key: ${{ secrets.EC2_SSH_KEY }}
-      #     script: |
-      #       echo "[1] /home/ec2-user/ROOT.war 존재 확인"
-      #       if [ ! -f "/home/ec2-user/ROOT.war" ]; then
-      #         echo "오류: /home/ec2-user/ROOT.war 파일 없음."
-      #         exit 1
-      #       fi
-      #       echo "파일 존재 확인 완료."
-      #
-      #       echo "[2] 기존 톰캣 ROOT 폴더 및 WAR 삭제"
-      #       sudo rm -rf /usr/local/tomcat/webapps/ROOT.war
-      #       sudo rm -rf /usr/local/tomcat/webapps/ROOT
-      #       echo "기존 배포 삭제 완료."
-      #
-      #       echo "[3] WAR 파일 이동"
-      #       sudo mv /home/ec2-user/ROOT.war /usr/local/tomcat/webapps/ROOT.war
-      #       if [ $? -ne 0 ]; then
-      #         echo "오류: WAR 파일 이동 실패."
-      #         exit 1
-      #       fi
-      #       echo "WAR 파일 이동 완료."
-      #
-      #       echo "[4] 톰캣 프로세스 종료 (존재하면)"
-      #       sudo pkill -f tomcat || true
-      #       sleep 5
-      #       echo "톰캣 종료 완료."
-      #
-      #       echo "[5] 톰캣 시작"
-      #       sudo /usr/local/tomcat/bin/startup.sh
-      #
+          echo "[5] 톰캣 재시작"
+          sudo /usr/local/tomcat/bin/startup.sh  # 톰캣 서버 재시작
